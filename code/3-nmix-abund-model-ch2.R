@@ -29,7 +29,7 @@
 ## settings ---------------------------------------------------
 
   rm(list=ls())
-  setwd("/Users/jasminewilliamson/Library/CloudStorage/OneDrive-Personal/Documents/Academic/OSU/Git")
+  setwd("/Users/jasminewilliamson/Library/CloudStorage/OneDrive-Personal/Documents/Academic/OSU/Git/abundance-ch2")
 
   library(nimble)
   library(coda)
@@ -60,20 +60,20 @@
 ## ------------------------------------------------------------
 
   counts_file <- switch(dataset,
-    oss  = "abundance-ch2/data/pass-level-counts-o.csv",
-    enes = "abundance-ch2/data/pass-level-counts-e.csv"
+    oss  = "data/pass-level-counts-o.csv",
+    enes = "data/pass-level-counts-e.csv"
   )
   counts.o <- read.csv(counts_file,
                        colClasses = c(stand = "character", obs = "character"))
   counts.o$subplot <- as.integer(counts.o$subplot)
   counts.o$pass    <- as.integer(counts.o$pass)
 
-  sals <- read.csv("occupancy-central/data/occupancy/sals.complete.csv",
+  sals <- read.csv("data/sals.complete.csv",
                    colClasses = c(stand = "character", subplot = "character",
                                   pass = "character", age_class = "factor",
                                   recap = "character", spp = "factor"))
 
-  subplot.dat <- read.csv("occupancy-central/data/covariate matrices/subplot.complete.new.csv",
+  subplot.dat <- read.csv("data/subplot.complete.new.csv",
                            colClasses = c(stand = "character", subplot = "integer"))
 
 
@@ -202,7 +202,7 @@
 
   ## fill jul_date NAs from subplot.complete.csv (27 subplots with no DWD have NA jul_date
   ## from the DWD-derived source in subplot.complete.new.csv; all subplots have a survey date)
-  subplot.base <- read.csv("occupancy-central/data/covariate matrices/subplot.complete.csv",
+  subplot.base <- read.csv("data/subplot.complete.csv",
                             colClasses = c(stand = "character")) %>%
     mutate(subplot = as.integer(subplot)) %>%
     select(site_id, subplot, date) %>%
@@ -216,7 +216,7 @@
   ## days_since_rain from env_subset_corr2.csv -----
   # this file is at site level (one row per site_id, 127 sites × 7 subplots = 889)
   # joining on site_id repeats each site's value across its 7 subplots automatically
-  env2 <- read.csv("occupancy-central/data/covariate matrices/env_subset_corr2.csv")
+  env2 <- read.csv("data/env_subset_corr2.csv")
   site_covs <- site_covs %>%
     left_join(env2 %>% select(site_id, days_since_rain, avg_volume), by = "site_id")
 
