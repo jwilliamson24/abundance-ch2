@@ -130,8 +130,8 @@
     dpi      = 300
   )
 
-  cat("Saved:", file.path(fig_dir, paste0("coeff-plot-", dataset, ".png")), "\n")
 
+  
 
 ##### Age Composition by Treatment (pi_age_baseline) -------------------------
 
@@ -197,8 +197,8 @@
     dpi      = 300
   )
 
-  cat("Saved:", file.path(fig_dir, paste0("age-comp-trt-", dataset, ".png")), "\n")
 
+  
 
 ##### Detection Probability by Age Class (p_age_baseline) --------------------
 
@@ -238,5 +238,5 @@
     dpi      = 300
   )
 
-  cat("Saved:", file.path(fig_dir, paste0("det-prob-age-", dataset, ".png")), "\n")
 
+  
