@@ -23,7 +23,7 @@
 
   ## load saved results
   out_dir       <- "/Users/jasminewilliamson/Library/CloudStorage/OneDrive-Personal/Documents/Academic/OSU/Git/abundance-ch2/data"
-  dataset       <- "enes"   # or "enes"
+  dataset       <- "oss"   # or "enes"
   a             <- readRDS(file.path(out_dir, paste0("mcmc_list_",     dataset, ".rds")))
   chain_samples <- readRDS(file.path(out_dir, paste0("chain_samples_", dataset, ".rds")))
   samples       <- do.call(rbind, lapply(a, as.matrix))
