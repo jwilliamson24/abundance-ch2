@@ -36,7 +36,7 @@
   library(dplyr)
 
   ## DATASET — "oss" uses pass-level-counts-o.csv, "enes" uses pass-level-counts-e.csv
-  dataset  <- "enes"
+  dataset  <- "oss"
   spp_code <- switch(dataset, oss = "OSS", enes = "ENES")
 
   ## DEBUG MODE - flip to FALSE for real runs
@@ -288,18 +288,18 @@
   NimModel <- nimbleCode({
 
     ## ABUNDANCE MODEL (lambda) -----
-    beta0 ~ dnorm(0, sd = 5)
+    beta0 ~ dnorm(0, sd = 0.5)
     beta.trt[1] <- 0                      # UU = reference treatment
     for (t in 2:ntrt) {
-      beta.trt[t] ~ dnorm(0, sd = 5)
+      beta.trt[t] ~ dnorm(0, sd = 0.5)
     }
     beta.canopy ~ dnorm(0, sd = 5)      # uninformative
-    beta.dwd.count    ~ dnorm(0, sd = 5) # count of pieces of lg downed wood
-    beta.decay  ~ dnorm(0, sd = 5)      # decay class of downed wood
-    beta.char   ~ dnorm(0, sd = 5)      # char class of downed wood
-    beta.fwd    ~ dnorm(0, sd = 5)      # fine woody debris % cover class
-    beta.veg    ~ dnorm(0, sd = 5)      # veg % cover class
-    beta.vol    ~ dnorm(0, sd = 5)      # volume of lg downed wood
+    beta.dwd.count    ~ dnorm(0, sd = 0.5) # count of pieces of lg downed wood
+    beta.decay  ~ dnorm(0, sd = 0.5)      # decay class of downed wood
+    beta.char   ~ dnorm(0, sd = 0.5)      # char class of downed wood
+    beta.fwd    ~ dnorm(0, sd = 0.5)      # fine woody debris % cover class
+    beta.veg    ~ dnorm(0, sd = 0.5)      # veg % cover class
+    beta.vol    ~ dnorm(0, sd = 0.5)      # volume of lg downed wood
 
     # stand random effect
     sigma.stand ~ dexp(1)                # half-exp keeps it positive and conservative
@@ -310,7 +310,7 @@
     # survey year fixed effect (year 1 = reference)
     beta.year[1] <- 0
     for (yr in 2:nyear) {
-      beta.year[yr] ~ dnorm(0, sd = 5)
+      beta.year[yr] ~ dnorm(0, sd = 0.5)
     }
 
 
@@ -340,11 +340,11 @@
     eps.p[1] <- 0                         # age detection offsets, J = reference age class
     eps.p[2] ~ dnorm(0, sd = 1)           # wider bc they could deviate per age class
     eps.p[3] ~ dnorm(0, sd = 1)
-    beta.temp  ~ dnorm(0, sd = 5)       # same uninformative priors as abundance covs
-    beta.temp2 ~ dnorm(0, sd = 5)       # quadratic temp term
-    beta.soil  ~ dnorm(0, sd = 5)       # soil moisture
-    beta.days  ~ dnorm(0, sd = 5)       # days since rain
-    beta.jul   ~ dnorm(0, sd = 5)       # julian date
+    beta.temp  ~ dnorm(0, sd = 0.5)       # same uninformative priors as abundance covs
+    beta.temp2 ~ dnorm(0, sd = 0.5)       # quadratic temp term
+    beta.soil  ~ dnorm(0, sd = 0.5)       # soil moisture
+    beta.days  ~ dnorm(0, sd = 0.5)       # days since rain
+    beta.jul   ~ dnorm(0, sd = 0.5)       # julian date
     # observer random intercept — 6 levels
     # zero-centered around mu.p so deviations are relative to the baseline
     # intercept, not to any single reference observer
