@@ -24,8 +24,8 @@
   ## load saved results
   out_dir       <- "/Users/jasminewilliamson/Library/CloudStorage/OneDrive-Personal/Documents/Academic/OSU/Git/abundance-ch2/data"
   dataset       <- "oss"   # or "enes"
-  a             <- readRDS(file.path(out_dir, paste0("mcmc_list_",     dataset, ".rds")))
-  chain_samples <- readRDS(file.path(out_dir, paste0("chain_samples_", dataset, ".rds")))
+  a             <- readRDS(file.path(out_dir, paste0("mcmc_list_notrt_",     dataset, ".rds")))
+  chain_samples <- readRDS(file.path(out_dir, paste0("chain_samples_notrt_", dataset, ".rds")))
   samples       <- do.call(rbind, lapply(a, as.matrix))
 
   fig_dir <- "/Users/jasminewilliamson/Library/CloudStorage/OneDrive-Personal/Documents/Academic/OSU/Git/abundance-ch2/figures"
@@ -35,15 +35,16 @@
 
   params_to_plot <- c(
     # Abundance (lambda)
-    "beta.trt[2]", "beta.trt[3]", "beta.trt[4]", "beta.trt[5]",
     "beta.year[2]",
     "beta.canopy", "beta.dwd.count", "beta.decay", "beta.char",
-    "beta.fwd", "beta.veg", "beta.vol",
+    "beta.fwd", "beta.veg", "beta.vol", "beta.smoist",
     # Age composition (pi_age)
     "gam.canopy[2]", "gam.canopy[3]",
     "gam.dwdcov[2]", "gam.dwdcov[3]",
-    "gam.soil[2]",   "gam.soil[3]",
+    "gam.decay[2]",  "gam.decay[3]",
+    "gam.char[2]",   "gam.char[3]",
     "gam.fwd[2]",    "gam.fwd[3]",
+    "gam.soil[2]",   "gam.soil[3]",
     # Detection (p)
     "beta.temp", "beta.temp2", "beta.soil", "beta.days", "beta.jul"
   )
@@ -56,27 +57,27 @@
     row.names = NULL
   )
 
+  abund_params <- c("beta.year[2]", "beta.canopy", "beta.dwd.count",
+                    "beta.decay", "beta.char", "beta.fwd", "beta.veg", "beta.vol", "beta.smoist")
+  age_params   <- c("gam.canopy[2]", "gam.canopy[3]",
+                    "gam.dwdcov[2]", "gam.dwdcov[3]",
+                    "gam.decay[2]",  "gam.decay[3]",
+                    "gam.char[2]",   "gam.char[3]",
+                    "gam.fwd[2]",    "gam.fwd[3]",
+                    "gam.soil[2]",   "gam.soil[3]")
+  det_params   <- c("beta.temp", "beta.temp2", "beta.soil", "beta.days", "beta.jul")
+
   coef_df <- coef_df %>%
     mutate(
       Submodel = case_when(
-        Parameter %in% c("beta.trt[2]", "beta.trt[3]", "beta.trt[4]", "beta.trt[5]",
-                          "beta.year[2]", "beta.canopy", "beta.dwd.count", "beta.decay",
-                          "beta.char", "beta.fwd", "beta.veg", "beta.vol")
-                                           ~ "Abundance (λ)",
-        Parameter %in% c("gam.canopy[2]", "gam.canopy[3]", "gam.dwdcov[2]", "gam.dwdcov[3]",
-                          "gam.soil[2]",   "gam.soil[3]",   "gam.fwd[2]",    "gam.fwd[3]")
-                                           ~ "Age Composition (π)",
-        Parameter %in% c("beta.temp", "beta.temp2", "beta.soil", "beta.days", "beta.jul")
-                                           ~ "Detection (p)"
+        Parameter %in% abund_params ~ "Abundance (λ)",
+        Parameter %in% age_params   ~ "Age Composition (π)",
+        Parameter %in% det_params   ~ "Detection (p)"
       ),
       Submodel = factor(Submodel, levels = c("Abundance (λ)",
                                               "Age Composition (π)",
                                               "Detection (p)")),
       Parameter = dplyr::recode(Parameter,
-        "beta.trt[2]"    = "Burn Salvage (BS)",
-        "beta.trt[3]"    = "Burn (BU)",
-        "beta.trt[4]"    = "Harvest Burn (HB)",
-        "beta.trt[5]"    = "Harvest (HU)",
         "beta.year[2]"   = "Year (2024)",
         "beta.canopy"    = "Canopy Cover",
         "beta.dwd.count" = "DWD Count",
@@ -85,19 +86,24 @@
         "beta.fwd"       = "FWD Cover",
         "beta.veg"       = "Veg Cover",
         "beta.vol"       = "DWD Volume",
+        "beta.smoist"    = "Soil Moisture",
         "gam.canopy[2]"  = "Canopy Cover (SA)",
         "gam.canopy[3]"  = "Canopy Cover (A)",
         "gam.dwdcov[2]"  = "DWD Cover (SA)",
         "gam.dwdcov[3]"  = "DWD Cover (A)",
-        "gam.soil[2]"    = "Soil Moisture (SA)",
-        "gam.soil[3]"    = "Soil Moisture (A)",
+        "gam.decay[2]"   = "Decay Class (SA)",
+        "gam.decay[3]"   = "Decay Class (A)",
+        "gam.char[2]"    = "Char Class (SA)",
+        "gam.char[3]"    = "Char Class (A)",
         "gam.fwd[2]"     = "FWD Cover (SA)",
         "gam.fwd[3]"     = "FWD Cover (A)",
+        "gam.soil[2]"    = "Soil Moisture (SA)",
+        "gam.soil[3]"    = "Soil Moisture (A)",
         "beta.temp"      = "Air Temp (linear)",
         "beta.temp2"     = "Air Temp (quadratic)",
-        "beta.soil"      = "Soil Moisture",
-        "beta.days"      = "Days Since Rain",
-        "beta.jul"       = "Julian Date"
+        "beta.soil"      = "Soil Moisture (det)",
+        "beta.days"         = "Days Since Rain",
+        "beta.jul"          = "Julian Date"
       )
     )
 
@@ -123,7 +129,7 @@
   p_coef
 
   ggsave(
-    filename = file.path(fig_dir, paste0("coeff-plot-", dataset, ".png")),
+    filename = file.path(fig_dir, paste0("coeff-plot-notrt-", dataset, ".png")),
     plot     = p_coef,
     width    = 7,
     height   = 10,
@@ -133,7 +139,50 @@
 
   
 
-##### Age Composition by Treatment (pi_age_baseline) -------------------------
+##### Age Composition — Overall Baseline (pi_age_baseline) -------------------
+
+  age_labels <- c("J", "SA", "A")
+
+  age_base_df <- data.frame(
+    age_class = age_labels,
+    Mean      = sapply(1:3, function(a) mean(samples[, paste0("pi_age_baseline[", a, "]")])),
+    LCI       = sapply(1:3, function(a) quantile(samples[, paste0("pi_age_baseline[", a, "]")], 0.025)),
+    UCI       = sapply(1:3, function(a) quantile(samples[, paste0("pi_age_baseline[", a, "]")], 0.975))
+  )
+  age_base_df$age_class <- factor(age_base_df$age_class, levels = c("J", "SA", "A"))
+
+  p_age_base <- ggplot(age_base_df, aes(x = age_class, y = Mean)) +
+    geom_point(size = 4) +
+    geom_errorbar(aes(ymin = LCI, ymax = UCI), width = 0.1, linewidth = 0.8) +
+    scale_x_discrete(labels = c("J" = "Juvenile", "SA" = "Sub-adult", "A" = "Adult")) +
+    scale_y_continuous(limits = c(0, 1)) +
+    labs(
+      title = paste("Baseline Age Composition —", toupper(dataset)),
+      y     = "Proportion",
+      x     = NULL
+    ) +
+    theme_classic() +
+    theme(
+      axis.text.x  = element_text(size = 13),
+      axis.text.y  = element_text(size = 12),
+      axis.title.y = element_text(size = 13),
+      plot.title   = element_text(face = "bold", size = 13)
+    )
+
+  p_age_base
+
+  ggsave(
+    filename = file.path(fig_dir, paste0("age-comp-baseline-notrt-", dataset, ".png")),
+    plot     = p_age_base,
+    width    = 4,
+    height   = 4,
+    dpi      = 300
+  )
+
+  cat("Saved:", file.path(fig_dir, paste0("age-comp-baseline-", dataset, ".png")), "\n")
+
+
+##### Age Composition by Treatment (pi_age_baseline) — if treatment in model --
 
   trt_labels  <- c("UU", "BS", "BU", "HB", "HU")
   age_labels  <- c("J", "SA", "A")

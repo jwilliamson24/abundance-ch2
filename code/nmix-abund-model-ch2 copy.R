@@ -10,8 +10,8 @@
 ## Adapted from nmix-model-with-covs-simulator6.R.
 ##
 ## Model structure:
-##   Abundance: stand (RE) + year (FE) + canopy + dwd count + dwd_cov + dwd_vol + decay + char + soil_moist + fwd_cov + veg_cov
-##   Age composition: canopy + dwd count + dwd_cov + dwd_vol + decay + char + soil_moist + fwd_cov + veg_cov
+##   Abundance: treatment (FE) + stand (RE) + year (FE) + canopy + dwd + decay + char
+##   Age composition: treatment baseline + canopy + dwd_cov + soil_moist
 ##   Detection: age class + temp + soil_moist + days_since_rain + observer (random intercept)
 ##     Observer levels (6): JW, JB, BZ, RMM, SLG, VO (CH + LS combined)
 ##     Zero-centered around mu.p; sigma.obs estimated from data
@@ -47,8 +47,8 @@
     n.burn   <- 100
     n.chains <- 2
   } else {
-    n.iter   <- 40000
-    n.burn   <- 10000
+    n.iter   <- 20000
+    n.burn   <- 5000
     n.chains <- 3
   }
 
@@ -262,14 +262,14 @@
   library(car)
 
   # Abundance submodel
-  abund_covs <- data.frame(canopy_cov, dwd_count, decay_cl, char_cl,
-                           fwd_cov, veg_cov, avg_volume, soil_moist) # put all covs in df
+  abund_covs <- data.frame(canopy_cov, dwd_count, decay_cl, char_cl, 
+                           fwd_cov, veg_cov, avg_volume)       # put all covs in df
   abund_covs$random <- runif(nrow(abund_covs))                 # create series of random vals
   abund_model <- lm(random ~ ., data = abund_covs)             # lm between random vals and each cov
   cat("\nVIF — Abundance submodel:\n"); vif(abund_model)       # calculate VIF for each cov pair
 
   # Age composition submodel
-  age_covs <- data.frame(canopy_cov, dwd_cov, decay_cl, char_cl, soil_moist, fwd_cov)
+  age_covs <- data.frame(canopy_cov, dwd_cov, soil_moist, fwd_cov)
   age_covs$random <- runif(nrow(age_covs))
   age_model <- lm(random ~ ., data = age_covs)
   cat("\nVIF — Age composition submodel:\n"); vif(age_model)
@@ -288,21 +288,23 @@
   NimModel <- nimbleCode({
 
     ## ABUNDANCE MODEL (lambda) -----
-    beta0          ~ dnorm(0, sd = 0.5)
-    beta.canopy    ~ dnorm(0, sd = 0.5)
-    beta.dwd.count ~ dnorm(0, sd = 0.5)
-    #beta.dwdcov    ~ dnorm(0, sd = 0.5)
-    beta.decay     ~ dnorm(0, sd = 0.5)
-    beta.char      ~ dnorm(0, sd = 0.5)
-    beta.fwd       ~ dnorm(0, sd = 0.5)
-    beta.veg       ~ dnorm(0, sd = 0.5)
-    beta.vol       ~ dnorm(0, sd = 0.5)
-    beta.smoist    ~ dnorm(0, sd = 0.5)
+    beta0 ~ dnorm(0, sd = 0.5)
+    beta.trt[1] <- 0                      # UU = reference treatment
+    for (t in 2:ntrt) {
+      beta.trt[t] ~ dnorm(0, sd = 0.5)
+    }
+    beta.canopy ~ dnorm(0, sd = 5)      # uninformative
+    beta.dwd.count    ~ dnorm(0, sd = 0.5) # count of pieces of lg downed wood
+    beta.decay  ~ dnorm(0, sd = 0.5)      # decay class of downed wood
+    beta.char   ~ dnorm(0, sd = 0.5)      # char class of downed wood
+    beta.fwd    ~ dnorm(0, sd = 0.5)      # fine woody debris % cover class
+    beta.veg    ~ dnorm(0, sd = 0.5)      # veg % cover class
+    beta.vol    ~ dnorm(0, sd = 0.5)      # volume of lg downed wood
 
     # stand random effect
-    sigma.stand ~ dexp(1)
+    sigma.stand ~ dexp(1)                # half-exp keeps it positive and conservative
     for (s in 1:nstand) {
-      alpha.stand[s] ~ dnorm(0, sd = sigma.stand)
+      alpha.stand[s] ~ dnorm(0, sd = sigma.stand) 
     }
 
     # survey year fixed effect (year 1 = reference)
@@ -313,36 +315,23 @@
 
 
     ## AGE COMPOSITION MODEL (pi_age) — PRIORS ONLY -----
-    phi0[1] <- 0                           # J = reference age class
-    phi0[2] ~ dnorm(0, sd = 2)
-    phi0[3] ~ dnorm(0, sd = 2)
-    gam.canopy[1]    <- 0
-    gam.canopy[2]    ~ dnorm(0, sd = 1)
-    gam.canopy[3]    ~ dnorm(0, sd = 1)
-    #gam.dwd.count[1] <- 0
-    #gam.dwd.count[2] ~ dnorm(0, sd = 1)
-    #gam.dwd.count[3] ~ dnorm(0, sd = 1)
-    gam.dwdcov[1]    <- 0
-    gam.dwdcov[2]    ~ dnorm(0, sd = 1)
-    gam.dwdcov[3]    ~ dnorm(0, sd = 1)
-    gam.decay[1]     <- 0
-    gam.decay[2]     ~ dnorm(0, sd = 1)
-    gam.decay[3]     ~ dnorm(0, sd = 1)
-    gam.char[1]      <- 0
-    gam.char[2]      ~ dnorm(0, sd = 1)
-    gam.char[3]      ~ dnorm(0, sd = 1)
-    gam.fwd[1]       <- 0
-    gam.fwd[2]       ~ dnorm(0, sd = 1)
-    gam.fwd[3]       ~ dnorm(0, sd = 1)
-    #gam.veg[1]       <- 0
-    #gam.veg[2]       ~ dnorm(0, sd = 1)
-    #gam.veg[3]       ~ dnorm(0, sd = 1)
-    #gam.vol[1]       <- 0
-    #gam.vol[2]       ~ dnorm(0, sd = 1)
-    #gam.vol[3]       ~ dnorm(0, sd = 1)
-    gam.soil[1]      <- 0
-    gam.soil[2]      ~ dnorm(0, sd = 1)
-    gam.soil[3]      ~ dnorm(0, sd = 1)
+    for (t in 1:ntrt) {
+      phi0[t,1] <- 0                       # J = reference age class
+      phi0[t,2] ~ dnorm(0, sd = 2)         # bigger than abund, age class proportions can be more extreme?
+      phi0[t,3] ~ dnorm(0, sd = 2)
+    }
+    gam.canopy[1] <- 0                     # canopy % cover class
+    gam.canopy[2] ~ dnorm(0, sd = 1)       # uninformative but moderately flexible
+    gam.canopy[3] ~ dnorm(0, sd = 1)       # allowing age classes to change proportion (90% adults possible)
+    gam.dwdcov[1] <- 0                     
+    gam.dwdcov[2] ~ dnorm(0, sd = 1)       # large downed wood % cover class
+    gam.dwdcov[3] ~ dnorm(0, sd = 1)
+    gam.soil[1]   <- 0
+    gam.soil[2]   ~ dnorm(0, sd = 1)       # soil moisture
+    gam.soil[3]   ~ dnorm(0, sd = 1)
+    gam.fwd[1]    <- 0
+    gam.fwd[2]    ~ dnorm(0, sd = 1)       # fine woody debris % cover class
+    gam.fwd[3]    ~ dnorm(0, sd = 1)
 
 
     ## DETECTION MODEL (p_age) — PRIORS ONLY -----
@@ -369,28 +358,19 @@
     for (i in 1:I) {
 
       # abundance
-      log(lambda[i]) <- beta0 +
+      log(lambda[i]) <- beta0 + beta.trt[trt[i]] +
                          alpha.stand[stand[i]] +
                          beta.year[year[i]] +
                          beta.canopy*canopy_cov[i] + beta.dwd.count*dwd_count[i] +
-                         #beta.dwdcov*dwd_cov[i]   +
-                         beta.decay*decay_cl[i]    +
-                         beta.char*char_cl[i]      + beta.fwd*fwd_cov[i] +
-                         beta.veg*veg_cov[i]       + beta.vol*avg_volume[i] +
-                         beta.smoist*soil_moist[i]
+                         beta.decay*decay_cl[i]    + beta.char*char_cl[i] +
+                         beta.fwd*fwd_cov[i]       + beta.veg*veg_cov[i] +
+                         beta.vol*avg_volume[i]
 
-      # age composition (site-level covariates, single intercept per age class)
+      # age composition (site-level: treatment baseline + covariates)
       for (a in 1:3) {
-        phi[i,a] <- phi0[a] +
-                    gam.canopy[a]*canopy_cov[i]  +
-                    #gam.dwd.count[a]*dwd_count[i] +
-                    gam.dwdcov[a]*dwd_cov[i]     +
-                    gam.decay[a]*decay_cl[i]     +
-                    gam.char[a]*char_cl[i]       +
-                    gam.fwd[a]*fwd_cov[i]         +
-                    #gam.veg[a]*veg_cov[i]        +
-                    #gam.vol[a]*avg_volume[i]     +
-                    gam.soil[a]*soil_moist[i]
+        phi[i,a] <- phi0[trt[i],a] + gam.canopy[a]*canopy_cov[i] +
+                    gam.dwdcov[a]*dwd_cov[i] + gam.soil[a]*soil_moist[i] +
+                    gam.fwd[a]*fwd_cov[i]
         exp.phi[i,a] <- exp(phi[i,a])
       }
       pi_age[i,1:3] <- exp.phi[i,1:3] / sum(exp.phi[i,1:3])
@@ -429,11 +409,13 @@
     for (a in 1:3) {
       logit(p_age_baseline[a]) <- mu.p + eps.p[a]
     }
-    # baseline age composition at average covariates (all covariates = 0)
-    for (a in 1:3) {
-      exp.phi0[a] <- exp(phi0[a])
+    # baseline age composition per treatment at average covariates (0)
+    for (t in 1:ntrt) {
+      for (a in 1:3) {
+        exp.phi0[t,a] <- exp(phi0[t,a])
+      }
+      pi_age_baseline[t,1:3] <- exp.phi0[t,1:3] / sum(exp.phi0[t,1:3])
     }
-    pi_age_baseline[1:3] <- exp.phi0[1:3] / sum(exp.phi0[1:3])
   })
 
 
@@ -458,43 +440,35 @@
   N_age.init <- apply(y, c(1,3), sum) + 2
 
   Niminits <- list(
-    beta0          = 0,
-    phi0           = c(0, 0, 0),
-    mu.p           = 0,
-    beta.canopy    = 0, beta.dwd.count = 0, #beta.dwdcov = 0,
-    beta.decay     = 0, beta.char = 0,
-    beta.fwd       = 0, beta.veg = 0, beta.vol = 0, beta.smoist = 0,
-    beta.temp      = 0, beta.temp2 = 0, beta.soil = 0, beta.days = 0, beta.jul = 0,
-    sigma.stand    = 0.5,
-    alpha.stand    = rep(0, nstand),
-    N_age          = N_age.init
+    beta0       = 0,
+    phi0        = matrix(0, ntrt, 3),
+    mu.p        = 0,
+    beta.canopy = 0, beta.dwd.count = 0, beta.decay = 0, beta.char = 0,
+    beta.fwd    = 0, beta.veg = 0, beta.vol = 0,
+    beta.temp   = 0, beta.temp2 = 0, beta.soil = 0, beta.days = 0, beta.jul = 0,
+    sigma.stand = 0.5,
+    alpha.stand = rep(0, nstand),
+    N_age       = N_age.init
   )
-  Niminits$beta.year     <- rep(NA, nyear)   # [1] fixed in model code
-  Niminits$eps.p         <- rep(NA, 3)       # [1] fixed in model code
-  Niminits$eps.obs       <- rep(0, nobs)
-  Niminits$sigma.obs     <- 0.5
-  Niminits$gam.canopy    <- rep(NA, 3)       # [1] fixed in model code (J = ref)
-  #Niminits$gam.dwd.count <- rep(NA, 3)
-  Niminits$gam.dwdcov    <- rep(NA, 3)
-  Niminits$gam.decay     <- rep(NA, 3)
-  Niminits$gam.char      <- rep(NA, 3)
-  Niminits$gam.fwd       <- rep(NA, 3)
-  #Niminits$gam.veg       <- rep(NA, 3)
-  #Niminits$gam.vol       <- rep(NA, 3)
-  Niminits$gam.soil      <- rep(NA, 3)
+  Niminits$beta.trt   <- rep(NA, ntrt)    # [1] fixed in model code
+  Niminits$beta.year  <- rep(NA, nyear)   # [1] fixed in model code
+  Niminits$eps.p      <- rep(NA, 3)       # [1] fixed in model code
+  Niminits$eps.obs    <- rep(0, nobs)     # all free — random effect, no fixed reference
+  Niminits$sigma.obs  <- 0.5
+  Niminits$gam.canopy <- rep(NA, 3)       # [1] fixed in model code (J = ref)
+  Niminits$gam.dwdcov <- rep(NA, 3)       # [1] fixed in model code
+  Niminits$gam.soil   <- rep(NA, 3)       # [1] fixed in model code
+  Niminits$gam.fwd    <- rep(NA, 3)       # [1] fixed in model code
 
   parameters <- c(
     "pi_age_baseline", "p_age_baseline",
-    "beta0", "Ntotal", "Ntrt",
-    "beta.canopy", "beta.dwd.count", #"beta.dwdcov",
-    "beta.decay", "beta.char", "beta.fwd", "beta.veg", "beta.vol", "beta.smoist",
-    "sigma.stand", "beta.year",
+    "beta0", "beta.trt", "Ntotal", "Ntrt",
+    "beta.canopy", "beta.dwd.count", "beta.decay", "beta.char", "beta.fwd", "beta.veg", "beta.vol",
+    "sigma.stand",
+    "beta.year",
     "beta.temp", "beta.temp2", "beta.soil", "beta.days", "beta.jul",
     "sigma.obs", "eps.obs",
-    "gam.canopy", #"gam.dwd.count",
-    "gam.dwdcov", "gam.decay", "gam.char",
-    "gam.fwd", #"gam.veg", "gam.vol",
-    "gam.soil"
+    "gam.canopy", "gam.dwdcov", "gam.soil", "gam.fwd"
   )
 
 
@@ -519,38 +493,34 @@
 
   for (chain in 1:n.chains) {
 
-    Cmodel$N_age              <- N_age.init * sample(1:3, 1)
-    Cmodel$beta0              <- rnorm(1, 0, 1)
-    Cmodel$phi0[2:3]          <- rnorm(2, 0, 1)   # [1] fixed at 0
-    Cmodel$mu.p               <- rnorm(1, 0, 1)
-    Cmodel$beta.canopy        <- rnorm(1, 0, 1)
+    phi0.init.chain     <- matrix(rnorm(ntrt*3, 0, 1), ntrt, 3)
+    phi0.init.chain[,1] <- 0
+
+    Cmodel$N_age        <- N_age.init * sample(1:3, 1)
+    Cmodel$beta0        <- rnorm(1, 0, 1)
+    Cmodel$phi0         <- phi0.init.chain
+    Cmodel$mu.p         <- rnorm(1, 0, 1)
+    Cmodel$beta.canopy  <- rnorm(1, 0, 1)
     Cmodel$beta.dwd.count     <- rnorm(1, 0, 1)
-    #Cmodel$beta.dwdcov       <- rnorm(1, 0, 1)
-    Cmodel$beta.decay         <- rnorm(1, 0, 1)
-    Cmodel$beta.char          <- rnorm(1, 0, 1)
-    Cmodel$beta.fwd           <- rnorm(1, 0, 1)
-    Cmodel$beta.veg           <- rnorm(1, 0, 1)
-    Cmodel$beta.vol           <- rnorm(1, 0, 1)
-    Cmodel$beta.smoist        <- rnorm(1, 0, 1)
-    Cmodel$beta.temp          <- rnorm(1, 0, 1)
-    Cmodel$beta.temp2         <- rnorm(1, 0, 1)
-    Cmodel$beta.soil          <- rnorm(1, 0, 1)
-    Cmodel$beta.days          <- rnorm(1, 0, 1)
-    Cmodel$beta.jul           <- rnorm(1, 0, 1)
+    Cmodel$beta.decay   <- rnorm(1, 0, 1)
+    Cmodel$beta.char    <- rnorm(1, 0, 1)
+    Cmodel$beta.fwd     <- rnorm(1, 0, 1)
+    Cmodel$beta.veg     <- rnorm(1, 0, 1)
+    Cmodel$beta.vol     <- rnorm(1, 0, 1)
+    Cmodel$beta.temp    <- rnorm(1, 0, 1)
+    Cmodel$beta.temp2   <- rnorm(1, 0, 1)
+    Cmodel$beta.soil    <- rnorm(1, 0, 1)
+    Cmodel$beta.days    <- rnorm(1, 0, 1)
+    Cmodel$beta.jul     <- rnorm(1, 0, 1)
     Cmodel$sigma.stand        <- runif(1, 0.1, 1)
     Cmodel$alpha.stand        <- rnorm(nstand, 0, 0.5)
-    Cmodel$beta.year[2:nyear] <- rnorm(nyear - 1, 0, 0.5)
+    Cmodel$beta.year[2:nyear] <- rnorm(nyear - 1, 0, 0.5)   # year 1 fixed at 0
     Cmodel$sigma.obs          <- runif(1, 0.1, 1)
-    Cmodel$eps.obs            <- rnorm(nobs, 0, 0.5)
+    Cmodel$eps.obs            <- rnorm(nobs, 0, 0.5)         # all 6 free
     Cmodel$gam.canopy[2:3]    <- rnorm(2, 0, 1)
-    #Cmodel$gam.dwd.count[2:3] <- rnorm(2, 0, 1)
     Cmodel$gam.dwdcov[2:3]    <- rnorm(2, 0, 1)
-    Cmodel$gam.decay[2:3]     <- rnorm(2, 0, 1)
-    Cmodel$gam.char[2:3]      <- rnorm(2, 0, 1)
-    Cmodel$gam.fwd[2:3]       <- rnorm(2, 0, 1)
-    #Cmodel$gam.veg[2:3]      <- rnorm(2, 0, 1)
-    #Cmodel$gam.vol[2:3]      <- rnorm(2, 0, 1)
     Cmodel$gam.soil[2:3]      <- rnorm(2, 0, 1)
+    Cmodel$gam.fwd[2:3]       <- rnorm(2, 0, 1)
 
     Cmcmc$run(n.iter, reset = TRUE)
     chain_samples[[chain]] <- as.matrix(Cmcmc$mvSamples)
@@ -560,8 +530,8 @@
   a <- as.mcmc.list(lapply(chain_samples, function(cs) mcmc(cs[post.burn, ])))
 
   out_dir <- "/Users/jasminewilliamson/Library/CloudStorage/OneDrive-Personal/Documents/Academic/OSU/Git/abundance-ch2/data"
-  saveRDS(chain_samples, file = file.path(out_dir, paste0("chain_samples_notrt_", dataset, ".rds")))
-  saveRDS(a,             file = file.path(out_dir, paste0("mcmc_list_notrt_",     dataset, ".rds")))
+  saveRDS(chain_samples, file = file.path(out_dir, paste0("chain_samples_", dataset, ".rds")))
+  saveRDS(a,             file = file.path(out_dir, paste0("mcmc_list_",     dataset, ".rds")))
   cat("Saved results for dataset:", dataset, "\n")
 
 
@@ -572,8 +542,8 @@
   ## To load saved results, choose correct dataset and run this block:
    out_dir       <- "/Users/jasminewilliamson/Library/CloudStorage/OneDrive-Personal/Documents/Academic/OSU/Git/abundance-ch2/data"
    dataset       <- "oss"   # or "enes"
-   a             <- readRDS(file.path(out_dir, paste0("mcmc_list_notrt_",     dataset, ".rds")))
-   chain_samples <- readRDS(file.path(out_dir, paste0("chain_samples_notrt_", dataset, ".rds")))
+   a             <- readRDS(file.path(out_dir, paste0("mcmc_list_",     dataset, ".rds")))
+   chain_samples <- readRDS(file.path(out_dir, paste0("chain_samples_", dataset, ".rds")))
    samples       <- do.call(rbind, lapply(a, as.matrix))
 
    
@@ -653,14 +623,14 @@
   }
 
   cat("\n--- Abundance covariates ---\n")
-  for (nm in c("beta.canopy", "beta.dwd.count", "beta.decay", "beta.char", "beta.fwd", "beta.veg", "beta.vol", "beta.smoist")) {
+  for (nm in c("beta.canopy", "beta.dwd.count", "beta.decay", "beta.char", "beta.fwd", "beta.veg", "beta.vol")) {
     est <- mean(samples[, nm])
     ci  <- quantile(samples[, nm], probs = c(0.025, 0.975))
     cat(sprintf("  %s: est = %.2f, 95%% CI = [%.2f, %.2f]\n", nm, est, ci[1], ci[2]))
   }
 
   cat("\n--- Age composition covariates ---\n")
-  for (nm in c("gam.canopy", "gam.dwdcov", "gam.decay", "gam.char", "gam.fwd", "gam.soil")) {
+  for (nm in c("gam.canopy", "gam.dwdcov", "gam.soil", "gam.fwd")) {
     for (a in 2:3) {
       col <- paste0(nm, "[", a, "]")
       est <- mean(samples[, col])
