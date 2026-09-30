@@ -23,7 +23,7 @@
 
   ## load saved results
   out_dir       <- "/Users/jasminewilliamson/Library/CloudStorage/OneDrive-Personal/Documents/Academic/OSU/Git/abundance-ch2/data"
-  dataset       <- "oss"   # or "enes"
+  dataset       <- "enes"   # or "enes"
   a             <- readRDS(file.path(out_dir, paste0("mcmc_list_notrt_",     dataset, ".rds")))
   chain_samples <- readRDS(file.path(out_dir, paste0("chain_samples_notrt_", dataset, ".rds")))
   samples       <- do.call(rbind, lapply(a, as.matrix))
@@ -107,7 +107,32 @@
       )
     )
 
-  p_coef <- ggplot(coef_df, aes(x = Mean, y = reorder(Parameter, Mean))) +
+  # abundance + detection: sort by posterior mean (most negative at bottom)
+  abund_order <- coef_df %>% filter(Submodel == "Abundance (λ)") %>% arrange(Mean) %>% pull(Parameter)
+  det_order   <- coef_df %>% filter(Submodel == "Detection (p)") %>% arrange(Mean) %>% pull(Parameter)
+
+  # age comp: map each SA/A label back to its covariate group
+  age_group_map <- c(
+    "Canopy Cover (SA)" = "Canopy Cover",  "Canopy Cover (A)"  = "Canopy Cover",
+    "DWD Cover (SA)"    = "DWD Cover",     "DWD Cover (A)"     = "DWD Cover",
+    "Decay Class (SA)"  = "Decay Class",   "Decay Class (A)"   = "Decay Class",
+    "Char Class (SA)"   = "Char Class",    "Char Class (A)"    = "Char Class",
+    "FWD Cover (SA)"    = "FWD Cover",     "FWD Cover (A)"     = "FWD Cover",
+    "Soil Moisture (SA)"= "Soil Moisture", "Soil Moisture (A)" = "Soil Moisture"
+  )
+  age_sub <- coef_df %>% filter(Submodel == "Age Composition (π)")
+  age_sub$group <- age_group_map[age_sub$Parameter]
+  # sort groups by their average mean, then list SA below A within each group
+  group_order <- age_sub %>%
+    group_by(group) %>% summarise(gmean = mean(Mean), .groups = "drop") %>%
+    arrange(gmean) %>% pull(group)
+  age_order <- unlist(lapply(group_order, function(g) c(paste0(g, " (SA)"), paste0(g, " (A)"))))
+
+  # set factor levels across all panels (facets use global level order)
+  coef_df$Parameter <- factor(coef_df$Parameter,
+                               levels = c(det_order, age_order, abund_order))
+
+  p_coef <- ggplot(coef_df, aes(x = Mean, y = Parameter)) +
     geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
     geom_errorbarh(aes(xmin = LCI, xmax = UCI), height = 0.2) +
     geom_point(size = 2) +

@@ -121,7 +121,7 @@
   p_trt
 
   ggsave(
-    filename = file.path(fig_dir, "both-spp-trt-abundance.png"),
+    filename = file.path(fig_dir, "both-spp-trt-abundance-updated.png"),
     plot     = p_trt,
     width    = 8,
     height   = 5,
