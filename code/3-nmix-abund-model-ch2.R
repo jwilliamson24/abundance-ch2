@@ -571,7 +571,7 @@
 
   ## To load saved results, choose correct dataset and run this block:
    out_dir       <- "/Users/jasminewilliamson/Library/CloudStorage/OneDrive-Personal/Documents/Academic/OSU/Git/abundance-ch2/data"
-   dataset       <- "oss"   # or "enes"
+   dataset       <- "enes"   # or "enes"
    a             <- readRDS(file.path(out_dir, paste0("mcmc_list_notrt_",     dataset, ".rds")))
    chain_samples <- readRDS(file.path(out_dir, paste0("chain_samples_notrt_", dataset, ".rds")))
    samples       <- do.call(rbind, lapply(a, as.matrix))
