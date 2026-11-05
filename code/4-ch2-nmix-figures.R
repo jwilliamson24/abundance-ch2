@@ -23,7 +23,7 @@
 
   ## load saved results
   out_dir       <- "/Users/jasminewilliamson/Library/CloudStorage/OneDrive-Personal/Documents/Academic/OSU/Git/abundance-ch2/data"
-  dataset       <- "oss"   # or "enes"
+  dataset       <- "enes"   # or "enes"
   a             <- readRDS(file.path(out_dir, paste0("mcmc_list_notrt_",     dataset, ".rds")))
   chain_samples <- readRDS(file.path(out_dir, paste0("chain_samples_notrt_", dataset, ".rds")))
   samples       <- do.call(rbind, lapply(a, as.matrix))
@@ -114,20 +114,22 @@
                                levels = c(det_order, age_order, abund_order))
 
   p_coef <- ggplot(coef_df, aes(x = Mean, y = Parameter)) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+    geom_vline(xintercept = 0, linetype = "dashed") +
     geom_errorbarh(aes(xmin = LCI, xmax = UCI), height = 0.2) +
     geom_point(size = 2) +
     facet_wrap(~ Submodel, scales = "free_y", ncol = 1) +
+    coord_cartesian(xlim = c(min(coef_df$LCI) - 0.2, max(coef_df$UCI) + 0.2)) +
     labs(
       title = paste("Posterior Coefficient Estimates —", toupper(dataset)),
       x     = "Posterior Mean (95% CI)",
-      y     = NULL
+      y     = "Parameter"
     ) +
-    theme_classic() +
     theme(
       axis.text.x  = element_text(size = 12),
       axis.text.y  = element_text(size = 12),
       axis.title.x = element_text(size = 13),
+      axis.title.y = element_text(size = 13),
+      legend.position = "none",
       strip.text   = element_text(size = 13, face = "bold"),
       plot.title   = element_text(face = "bold", size = 13)
     )
