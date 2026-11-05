@@ -59,10 +59,10 @@
 
 ##### Load posteriors for both species ----------------------------------------
 
-  a_oss        <- readRDS(file.path(out_dir, "mcmc_list_oss.rds"))
+  a_oss        <- readRDS(file.path(out_dir, "mcmc_list_notrt_oss.rds"))
   samples_oss  <- do.call(rbind, lapply(a_oss, as.matrix))
 
-  a_enes       <- readRDS(file.path(out_dir, "mcmc_list_enes.rds"))
+  a_enes       <- readRDS(file.path(out_dir, "mcmc_list_notrt_enes.rds"))
   samples_enes <- do.call(rbind, lapply(a_enes, as.matrix))
 
   oss_preds  <- extract_ntrt(samples_oss,  "OSS")

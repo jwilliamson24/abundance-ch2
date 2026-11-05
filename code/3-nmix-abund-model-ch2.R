@@ -47,8 +47,8 @@
     n.burn   <- 100
     n.chains <- 2
   } else {
-    n.iter   <- 40000
-    n.burn   <- 10000
+    n.iter   <- 60000
+    n.burn   <- 15000
     n.chains <- 3
   }
 
@@ -263,19 +263,19 @@
 
   # Abundance submodel
   abund_covs <- data.frame(canopy_cov, dwd_count, decay_cl, char_cl,
-                           fwd_cov, veg_cov, avg_volume, soil_moist) # put all covs in df
+                           avg_volume)  # put all covs in df
   abund_covs$random <- runif(nrow(abund_covs))                 # create series of random vals
   abund_model <- lm(random ~ ., data = abund_covs)             # lm between random vals and each cov
   cat("\nVIF — Abundance submodel:\n"); vif(abund_model)       # calculate VIF for each cov pair
 
   # Age composition submodel
-  age_covs <- data.frame(canopy_cov, dwd_cov, decay_cl, char_cl, soil_moist, fwd_cov)
+  age_covs <- data.frame(dwd_cov, decay_cl, soil_moist)
   age_covs$random <- runif(nrow(age_covs))
   age_model <- lm(random ~ ., data = age_covs)
   cat("\nVIF — Age composition submodel:\n"); vif(age_model)
 
   # Detection submodel
-  det_covs <- data.frame(temp, temp_sq, soil_moist, days_since_rain, jul_date)
+  det_covs <- data.frame(temp, temp_sq, soil_moist, days_since_rain)
   det_covs$random <- runif(nrow(det_covs))
   det_model <- lm(random ~ ., data = det_covs)
   cat("\nVIF — Detection submodel:\n"); vif(det_model)
@@ -294,10 +294,10 @@
     #beta.dwdcov    ~ dnorm(0, sd = 0.5)
     beta.decay     ~ dnorm(0, sd = 0.5)
     beta.char      ~ dnorm(0, sd = 0.5)
-    beta.fwd       ~ dnorm(0, sd = 0.5)
-    beta.veg       ~ dnorm(0, sd = 0.5)
+    #beta.fwd       ~ dnorm(0, sd = 0.5)
+    #beta.veg       ~ dnorm(0, sd = 0.5)
     beta.vol       ~ dnorm(0, sd = 0.5)
-    beta.smoist    ~ dnorm(0, sd = 0.5)
+    #beta.smoist    ~ dnorm(0, sd = 0.5)
 
     # stand random effect
     sigma.stand ~ dexp(1)
@@ -316,9 +316,9 @@
     phi0[1] <- 0                           # J = reference age class
     phi0[2] ~ dnorm(0, sd = 2)
     phi0[3] ~ dnorm(0, sd = 2)
-    gam.canopy[1]    <- 0
-    gam.canopy[2]    ~ dnorm(0, sd = 1)
-    gam.canopy[3]    ~ dnorm(0, sd = 1)
+    #gam.canopy[1]    <- 0
+    #gam.canopy[2]    ~ dnorm(0, sd = 1)
+    #gam.canopy[3]    ~ dnorm(0, sd = 1)
     #gam.dwd.count[1] <- 0
     #gam.dwd.count[2] ~ dnorm(0, sd = 1)
     #gam.dwd.count[3] ~ dnorm(0, sd = 1)
@@ -328,12 +328,12 @@
     gam.decay[1]     <- 0
     gam.decay[2]     ~ dnorm(0, sd = 1)
     gam.decay[3]     ~ dnorm(0, sd = 1)
-    gam.char[1]      <- 0
-    gam.char[2]      ~ dnorm(0, sd = 1)
-    gam.char[3]      ~ dnorm(0, sd = 1)
-    gam.fwd[1]       <- 0
-    gam.fwd[2]       ~ dnorm(0, sd = 1)
-    gam.fwd[3]       ~ dnorm(0, sd = 1)
+    #gam.char[1]      <- 0
+    #gam.char[2]      ~ dnorm(0, sd = 1)
+    #gam.char[3]      ~ dnorm(0, sd = 1)
+    #gam.fwd[1]       <- 0
+    #gam.fwd[2]       ~ dnorm(0, sd = 1)
+    #gam.fwd[3]       ~ dnorm(0, sd = 1)
     #gam.veg[1]       <- 0
     #gam.veg[2]       ~ dnorm(0, sd = 1)
     #gam.veg[3]       ~ dnorm(0, sd = 1)
@@ -355,7 +355,7 @@
     beta.temp2 ~ dnorm(0, sd = 0.5)       # quadratic temp term
     beta.soil  ~ dnorm(0, sd = 0.5)       # soil moisture
     beta.days  ~ dnorm(0, sd = 0.5)       # days since rain
-    beta.jul   ~ dnorm(0, sd = 0.5)       # julian date
+    #beta.jul   ~ dnorm(0, sd = 0.5)
     # observer random intercept — 6 levels
     # zero-centered around mu.p so deviations are relative to the baseline
     # intercept, not to any single reference observer
@@ -369,48 +369,63 @@
     for (i in 1:I) {
 
       # abundance
-      log(lambda[i]) <- beta0 +
+      # on log scale so stays positive
+      log(lambda[i]) <- beta0 +      
                          alpha.stand[stand[i]] +
                          beta.year[year[i]] +
                          beta.canopy*canopy_cov[i] + beta.dwd.count*dwd_count[i] +
                          #beta.dwdcov*dwd_cov[i]   +
                          beta.decay*decay_cl[i]    +
-                         beta.char*char_cl[i]      + beta.fwd*fwd_cov[i] +
-                         beta.veg*veg_cov[i]       + beta.vol*avg_volume[i] +
-                         beta.smoist*soil_moist[i]
+                         beta.char*char_cl[i]      +
+                         #beta.fwd*fwd_cov[i]      +
+                         #beta.veg*veg_cov[i]      +
+                         beta.vol*avg_volume[i]
 
-      # age composition (site-level covariates, single intercept per age class)
+      
+      # age composition 
+      # what fraction of salamanders are juv, SA, A
+      # juvi is reference (A as ref would make estimates tiny bc majority are A)
+      # each age class gets its own intercept and slope for each covariate
+      
       for (a in 1:3) {
-        phi[i,a] <- phi0[a] +
-                    gam.canopy[a]*canopy_cov[i]  +
+        # makes phi "scores" for each age class
+        phi[i,a] <- phi0[a] + 
+                    #gam.canopy[a]*canopy_cov[i]  +
                     #gam.dwd.count[a]*dwd_count[i] +
                     gam.dwdcov[a]*dwd_cov[i]     +
                     gam.decay[a]*decay_cl[i]     +
-                    gam.char[a]*char_cl[i]       +
-                    gam.fwd[a]*fwd_cov[i]         +
+                    #gam.char[a]*char_cl[i]       +
+                    #gam.fwd[a]*fwd_cov[i]        +
                     #gam.veg[a]*veg_cov[i]        +
                     #gam.vol[a]*avg_volume[i]     +
                     gam.soil[a]*soil_moist[i]
-        exp.phi[i,a] <- exp(phi[i,a])
+        # softmax, converts phi scores to proportions sum to 1:
+        exp.phi[i,a] <- exp(phi[i,a])   # exponentiates to make positive
       }
-      pi_age[i,1:3] <- exp.phi[i,1:3] / sum(exp.phi[i,1:3])
+      pi_age[i,1:3] <- exp.phi[i,1:3] / sum(exp.phi[i,1:3]) # divide by sum, add all three to 1
 
+      # true abundance for each age class
+      # multiply abundance by the age class proportion
       for (a in 1:3) {
         N_age[i,a] ~ dpois(lambda[i] * pi_age[i,a])
 
-        # detection varies by pass via observer tier (obs[i,k])
+        
+      # detection varies by pass via observer tier (obs[i,k])
+      # logit to keep between 0 and 1
         for (k in 1:K) {
           logit(p_age[i,k,a]) <- mu.p + eps.p[a] +
                                   beta.temp*temp[i] + beta.temp2*temp_sq[i] +
                                   beta.soil*soil_moist[i] +
-                                  beta.days*days_since_rain[i] + beta.jul*jul_date[i] +
+                                  beta.days*days_since_rain[i] +
                                   eps.obs[obs[i,k]]
         }
 
-        # sequential removal — pass-specific detection
-        avail[i,1,a] <- N_age[i,a]
+        
+      # removal sampling
+      # sequential removal — pass-specific detection
+        avail[i,1,a] <- N_age[i,a]                   # all sals can be caught
         y[i,1,a] ~ dbin(p_age[i,1,a], avail[i,1,a])
-        avail[i,2,a] <- avail[i,1,a] - y[i,1,a]
+        avail[i,2,a] <- avail[i,1,a] - y[i,1,a]      # ones caught on 1 are removed
         y[i,2,a] ~ dbin(p_age[i,2,a], avail[i,2,a])
         avail[i,3,a] <- avail[i,2,a] - y[i,2,a]
         y[i,3,a] ~ dbin(p_age[i,3,a], avail[i,3,a])
@@ -463,8 +478,9 @@
     mu.p           = 0,
     beta.canopy    = 0, beta.dwd.count = 0, #beta.dwdcov = 0,
     beta.decay     = 0, beta.char = 0,
-    beta.fwd       = 0, beta.veg = 0, beta.vol = 0, beta.smoist = 0,
-    beta.temp      = 0, beta.temp2 = 0, beta.soil = 0, beta.days = 0, beta.jul = 0,
+    #beta.fwd      = 0, #beta.veg = 0,
+    beta.vol       = 0, #beta.smoist = 0,
+    beta.temp      = 0, beta.temp2 = 0, beta.soil = 0, beta.days = 0, #beta.jul = 0,
     sigma.stand    = 0.5,
     alpha.stand    = rep(0, nstand),
     N_age          = N_age.init
@@ -473,12 +489,12 @@
   Niminits$eps.p         <- rep(NA, 3)       # [1] fixed in model code
   Niminits$eps.obs       <- rep(0, nobs)
   Niminits$sigma.obs     <- 0.5
-  Niminits$gam.canopy    <- rep(NA, 3)       # [1] fixed in model code (J = ref)
+  #Niminits$gam.canopy    <- rep(NA, 3)
   #Niminits$gam.dwd.count <- rep(NA, 3)
   Niminits$gam.dwdcov    <- rep(NA, 3)
   Niminits$gam.decay     <- rep(NA, 3)
-  Niminits$gam.char      <- rep(NA, 3)
-  Niminits$gam.fwd       <- rep(NA, 3)
+  #Niminits$gam.char      <- rep(NA, 3)
+  #Niminits$gam.fwd       <- rep(NA, 3)
   #Niminits$gam.veg       <- rep(NA, 3)
   #Niminits$gam.vol       <- rep(NA, 3)
   Niminits$gam.soil      <- rep(NA, 3)
@@ -487,13 +503,14 @@
     "pi_age_baseline", "p_age_baseline",
     "beta0", "Ntotal", "Ntrt",
     "beta.canopy", "beta.dwd.count", #"beta.dwdcov",
-    "beta.decay", "beta.char", "beta.fwd", "beta.veg", "beta.vol", "beta.smoist",
+    "beta.decay", "beta.char", #"beta.fwd", "beta.veg",
+    "beta.vol", #"beta.smoist",
     "sigma.stand", "beta.year",
-    "beta.temp", "beta.temp2", "beta.soil", "beta.days", "beta.jul",
+    "beta.temp", "beta.temp2", "beta.soil", "beta.days", #"beta.jul",
     "sigma.obs", "eps.obs",
-    "gam.canopy", #"gam.dwd.count",
-    "gam.dwdcov", "gam.decay", "gam.char",
-    "gam.fwd", #"gam.veg", "gam.vol",
+    #"gam.canopy", #"gam.dwd.count",
+    "gam.dwdcov", "gam.decay",
+    #"gam.char", #"gam.fwd", #"gam.veg", #"gam.vol",
     "gam.soil"
   )
 
@@ -528,26 +545,26 @@
     #Cmodel$beta.dwdcov       <- rnorm(1, 0, 1)
     Cmodel$beta.decay         <- rnorm(1, 0, 1)
     Cmodel$beta.char          <- rnorm(1, 0, 1)
-    Cmodel$beta.fwd           <- rnorm(1, 0, 1)
-    Cmodel$beta.veg           <- rnorm(1, 0, 1)
+    #Cmodel$beta.fwd          <- rnorm(1, 0, 1)
+    #Cmodel$beta.veg          <- rnorm(1, 0, 1)
     Cmodel$beta.vol           <- rnorm(1, 0, 1)
-    Cmodel$beta.smoist        <- rnorm(1, 0, 1)
+    #Cmodel$beta.smoist       <- rnorm(1, 0, 1)
     Cmodel$beta.temp          <- rnorm(1, 0, 1)
     Cmodel$beta.temp2         <- rnorm(1, 0, 1)
     Cmodel$beta.soil          <- rnorm(1, 0, 1)
     Cmodel$beta.days          <- rnorm(1, 0, 1)
-    Cmodel$beta.jul           <- rnorm(1, 0, 1)
+    #Cmodel$beta.jul          <- rnorm(1, 0, 1)
     Cmodel$sigma.stand        <- runif(1, 0.1, 1)
     Cmodel$alpha.stand        <- rnorm(nstand, 0, 0.5)
     Cmodel$beta.year[2:nyear] <- rnorm(nyear - 1, 0, 0.5)
     Cmodel$sigma.obs          <- runif(1, 0.1, 1)
     Cmodel$eps.obs            <- rnorm(nobs, 0, 0.5)
-    Cmodel$gam.canopy[2:3]    <- rnorm(2, 0, 1)
+    #Cmodel$gam.canopy[2:3]    <- rnorm(2, 0, 1)
     #Cmodel$gam.dwd.count[2:3] <- rnorm(2, 0, 1)
     Cmodel$gam.dwdcov[2:3]    <- rnorm(2, 0, 1)
     Cmodel$gam.decay[2:3]     <- rnorm(2, 0, 1)
-    Cmodel$gam.char[2:3]      <- rnorm(2, 0, 1)
-    Cmodel$gam.fwd[2:3]       <- rnorm(2, 0, 1)
+    #Cmodel$gam.char[2:3]     <- rnorm(2, 0, 1)
+    #Cmodel$gam.fwd[2:3]      <- rnorm(2, 0, 1)
     #Cmodel$gam.veg[2:3]      <- rnorm(2, 0, 1)
     #Cmodel$gam.vol[2:3]      <- rnorm(2, 0, 1)
     Cmodel$gam.soil[2:3]      <- rnorm(2, 0, 1)
@@ -579,6 +596,12 @@
    
   gelman <- gelman.diag(a, multivariate = FALSE)
   print(gelman)
+  cat("Rhat > 1.1:\n"); print(round(gelman$psrf[gelman$psrf[,1] > 1.1, , drop=FALSE], 3))
+
+  ess_vals <- effectiveSize(a)
+  print(round(ess_vals, 0))
+  ess_estimated <- ess_vals[ess_vals > 0]   # exclude fixed constants (ESS = 0)
+  cat("ESS < 200:\n"); print(round(ess_estimated[ess_estimated < 200], 0))
 
   plot(a[, "Ntotal"])
   plot(a[, "p_age_baseline[3]"])
@@ -598,29 +621,28 @@
 ## 11. OUTPUT
 ## ------------------------------------------------------------
 
-  cat("\n--- Baseline age composition by treatment (at avg covariates) ---\n")
-  for (t in 1:ntrt) {
-    cat("\n--", treatment_levels[t], "--\n")
-    for (a in 1:3) {
-      col <- paste0("pi_age_baseline[", t, ", ", a, "]")
-      est <- mean(samples[, col])
-      ci  <- quantile(samples[, col], probs = c(0.025, 0.975))
-      cat(sprintf("  %s: est = %.2f, 95%% CI = [%.2f, %.2f]\n",
-                   age_levels[a], est, ci[1], ci[2]))
-    }
+  age_labels <- c("J", "SA", "A")
+
+  cat("\n--- Baseline age composition (at avg covariates) ---\n")
+  for (a in 1:3) {
+    col <- paste0("pi_age_baseline[", a, "]")
+    est <- mean(samples[, col])
+    ci  <- quantile(samples[, col], probs = c(0.025, 0.975))
+    cat(sprintf("  %s: est = %.2f, 95%% CI = [%.2f, %.2f]\n",
+                 age_labels[a], est, ci[1], ci[2]))
   }
 
-  cat("\n--- Baseline detection by age class (avg covariates, observer = you) ---\n")
+  cat("\n--- Baseline detection by age class (avg covariates) ---\n")
   for (a in 1:3) {
     col <- paste0("p_age_baseline[", a, "]")
     est <- mean(samples[, col])
     ci  <- quantile(samples[, col], probs = c(0.025, 0.975))
     cat(sprintf("  %s: est = %.2f, 95%% CI = [%.2f, %.2f]\n",
-                 age_levels[a], est, ci[1], ci[2]))
+                 age_labels[a], est, ci[1], ci[2]))
   }
 
   cat("\n--- Detection covariates ---\n")
-  for (nm in c("beta.temp", "beta.temp2", "beta.soil", "beta.days", "beta.jul")) {
+  for (nm in c("beta.temp", "beta.temp2", "beta.soil", "beta.days")) {
     est <- mean(samples[, nm])
     ci  <- quantile(samples[, nm], probs = c(0.025, 0.975))
     cat(sprintf("  %s: est = %.2f, 95%% CI = [%.2f, %.2f]\n", nm, est, ci[1], ci[2]))
@@ -653,14 +675,14 @@
   }
 
   cat("\n--- Abundance covariates ---\n")
-  for (nm in c("beta.canopy", "beta.dwd.count", "beta.decay", "beta.char", "beta.fwd", "beta.veg", "beta.vol", "beta.smoist")) {
+  for (nm in c("beta.canopy", "beta.dwd.count", "beta.decay", "beta.char", "beta.vol")) {
     est <- mean(samples[, nm])
     ci  <- quantile(samples[, nm], probs = c(0.025, 0.975))
     cat(sprintf("  %s: est = %.2f, 95%% CI = [%.2f, %.2f]\n", nm, est, ci[1], ci[2]))
   }
 
   cat("\n--- Age composition covariates ---\n")
-  for (nm in c("gam.canopy", "gam.dwdcov", "gam.decay", "gam.char", "gam.fwd", "gam.soil")) {
+  for (nm in c("gam.dwdcov", "gam.decay", "gam.soil")) {
     for (a in 2:3) {
       col <- paste0(nm, "[", a, "]")
       est <- mean(samples[, col])
