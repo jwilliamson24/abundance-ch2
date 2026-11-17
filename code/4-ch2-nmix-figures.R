@@ -23,7 +23,7 @@
 
   ## load saved results
   out_dir       <- "/Users/jasminewilliamson/Library/CloudStorage/OneDrive-Personal/Documents/Academic/OSU/Git/abundance-ch2/data"
-  dataset       <- "enes"   # or "enes"
+  dataset       <- "oss"   # or "enes"
   a             <- readRDS(file.path(out_dir, paste0("mcmc_list_notrt_",     dataset, ".rds")))
   chain_samples <- readRDS(file.path(out_dir, paste0("chain_samples_notrt_", dataset, ".rds")))
   samples       <- do.call(rbind, lapply(a, as.matrix))
@@ -51,6 +51,8 @@
     Mean      = colMeans(samples[, params_to_plot]),
     LCI       = apply(samples[, params_to_plot], 2, quantile, 0.025),
     UCI       = apply(samples[, params_to_plot], 2, quantile, 0.975),
+    LCI75     = apply(samples[, params_to_plot], 2, quantile, 0.125),
+    UCI75     = apply(samples[, params_to_plot], 2, quantile, 0.875),
     row.names = NULL
   )
 
@@ -115,13 +117,14 @@
 
   p_coef <- ggplot(coef_df, aes(x = Mean, y = Parameter)) +
     geom_vline(xintercept = 0, linetype = "dashed") +
-    geom_errorbarh(aes(xmin = LCI, xmax = UCI), height = 0.2) +
+    geom_errorbarh(aes(xmin = LCI,   xmax = UCI),   height = 0.2, linewidth = 0.6) +
+    geom_errorbarh(aes(xmin = LCI75, xmax = UCI75), height = 0,   linewidth = 1.6) +
     geom_point(size = 2) +
     facet_wrap(~ Submodel, scales = "free_y", ncol = 1) +
     coord_cartesian(xlim = c(min(coef_df$LCI) - 0.2, max(coef_df$UCI) + 0.2)) +
     labs(
       title = paste("Posterior Coefficient Estimates —", toupper(dataset)),
-      x     = "Posterior Mean (95% CI)",
+      x     = "Posterior Mean (75% / 95% CI)",
       y     = "Parameter"
     ) +
     theme(

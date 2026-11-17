@@ -22,7 +22,7 @@
   library(ggplot2)
   library(dplyr)
 
-  dataset <- "oss"   # or "enes"
+  dataset <- "enes"   # or "enes"
   n_sim   <- 500     # posterior draws to simulate from
 
   out_dir <- "data"
